@@ -14,6 +14,7 @@ int hardness[xlenMax][ylenMax];
 
 int difficulty[xlenMax][ylenMax];
 
+
 typedef struct node {
 	int xcoor;
 	int ycoor;
@@ -33,12 +34,17 @@ int size;
 }neighbourhood;
 
 
+int getNeighbour(int x, int y, neighbourhood* n);
+int push(node_heap* nh, int x, int y);
+int pop(node_heap* nh, int* x, int* y);
+int print_difficulty();
+
 int main(int argc, char* argv[])
 {
 	srand(time(0));
 	printf("Hello World!!\n");
 
-	int i,j,k;
+	int i,j,k, x, y;
 /*
 	FILE *f;
 
@@ -144,11 +150,64 @@ int main(int argc, char* argv[])
 		for(j = 0; j < xlenMax; j++) difficulty[j][i] = INT_MAX;
 	}
 
+	for (i = 0; i < ylenMax; i++)
+	{
+		for (j = 0; j < xlenMax; j++)
+		{
+			hardness[j][i] = 1 + (rand() % 254);
+		}
+	}
+
 	for (i = 0; i < ylenMax; i++){
 		for(j = 0; j < xlenMax; j++) grid[i][j] = '.';
 	}
 
-	//placing the PC at 2020
+	//placing the PC at 20,10
+
+	//first we initialize a node_heap
+	node_heap newH;
+	newH.size = 0;
+	newH.tail = NULL;
+	newH.head = NULL;
+
+	push (&newH, 20, 10);
+	difficulty[20][10] = 0;
+
+	while(newH.size > 0)
+	{
+		pop(&newH, &i, &j);
+		neighbourhood currN;
+		getNeighbour(i, j, &currN);
+		int init_diff = difficulty[i][j];
+		int diff_curr_block;
+		if (grid[i][j]== ' ') diff_curr_block = 1 + (hardness[i][j]/85);
+		else diff_curr_block = 1;
+
+		for (k = 0; k < currN.size; k++){
+			x = currN.store[k][0];
+			y = currN.store[k][1];
+
+			if (grid[x][y] != ' ')
+			{
+				//check to see if it is already on the processed stack
+				if (difficulty[x][y] > (init_diff + diff_curr_block))
+				{
+					difficulty[x][y] = init_diff + 1;
+					push(&newH, x, y);
+				}
+			}
+
+		}
+		//add the processed i,j on the processed stack
+
+	}
+
+	print_difficulty();
+
+	printf("\n\n");
+	j = 43;
+	i = j%10;
+	printf("%c\n", (char)('0' + i));
 
 
 
@@ -244,11 +303,11 @@ int push(node_heap* nh, int x, int y)
 }
 int pop(node_heap* nh, int* x, int* y)
 {
-	if (!(nh->size))
+	if (nh->size == 1)
 	{
 		*x = nh->tail->xcoor;
 		*y = nh->tail->ycoor;
-		free(nh->head);
+		free(nh->tail);
 	}
 	else
 	{
@@ -261,6 +320,33 @@ int pop(node_heap* nh, int* x, int* y)
 		free(temp);
 
 	}
+	nh->size -= 1;
+	return 0;
+
+}
+int print_difficulty(){
+	int i, j;
+	for (i = 0; i < ylenMax; i++)
+	{
+		for (j = 0; j < xlenMax; j++)
+		{
+			if (difficulty[j][i] == INT_MAX) printf(" ");
+			else printf("%c", (char) ('0' + (difficulty[j][i]%10)));
+		}
+		printf("\n");
+	}
+	printf("\n\n");
+	for (i = 0; i < ylenMax; i++)
+	{
+		for (j = 0; j < xlenMax; j++)
+		{
+			//if (difficulty[j][i] == INT_MAX) printf(" ");
+			//else printf("%c", (char) ('0' + (difficulty[j][i]%10)));
+			printf("%02x", hardness[j][i]);
+		}
+		printf("\n");
+	}
 
 
+	return 0;
 }
