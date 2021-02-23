@@ -239,4 +239,28 @@ int push(node_heap* nh, int x, int y)
 		nh->size++;
 	}
 
+	return 0;
+
+}
+int pop(node_heap* nh, int* x, int* y)
+{
+	if (!(nh->size))
+	{
+		*x = nh->tail->xcoor;
+		*y = nh->tail->ycoor;
+		free(nh->head);
+	}
+	else
+	{
+		node* temp;
+		*x = nh->tail->xcoor;
+		*y = nh->tail->ycoor;
+		temp = nh->tail;
+		nh->tail = nh->tail->next;
+		nh->tail->prev = NULL;
+		free(temp);
+
+	}
+
+
 }
