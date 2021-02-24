@@ -58,6 +58,7 @@ int not_so_rand_roomsize_resizer(int numRooms);
 int print_dungeon(int x, int y);
 int djik (int xcoordinate, int ycoordinate, int ifdigger);
 int print_difficulty();
+int print_hardness();
 
 char grid[xlenMax][ylenMax];
 int hardness[xlenMax][ylenMax];
@@ -414,6 +415,7 @@ int main(int argc, char* argv[])
 	djik (xPCpos-1, yPCpos-1, 0);
 	printf("\n");
 	print_difficulty();
+	print_hardness();
 
 
 
@@ -843,17 +845,42 @@ int print_difficulty()
 		printf("\n");
 	}
 	printf("\n\n");
+	return 0;
+}
+int print_hardness()
+{
+	int i,j;
+	printf("   ");
+	for (j = 0; j < xlenMax + 2; j++)
+	{
+			printf("%2d", j);
+	}
+	printf("\n 0 ");
+	for (j = 0; j < xlenMax + 2; j++)
+	{
+			printf("ff");
+	}
+	printf("\n");
+
+
 	for (i = 0; i < ylenMax; i++)
 	{
+		printf("%2d ff", (i+1));
 		for (j = 0; j < xlenMax; j++)
 		{
 			//if (difficulty[j][i] == INT_MAX) printf(" ");
 			//else printf("%c", (char) ('0' + (difficulty[j][i]%10)));
 			printf("%02x", hardness[j][i]);
 		}
-		printf("\n");
+		printf("ff\n");
 	}
 
+	printf("20 ");
+	for (j = 0; j < xlenMax + 2; j++)
+	{
+			printf("ff");
+	}
+	printf("\n");
 
 	return 0;
 }
