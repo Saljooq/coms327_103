@@ -38,6 +38,7 @@ int getNeighbour(int x, int y, neighbourhood* n);
 int push(node_heap* nh, int x, int y);
 int pop(node_heap* nh, int* x, int* y);
 int print_difficulty();
+int djik (int x, int y, int ifdigger);//takes the PC position (x,y and ifdigger)
 
 int main(int argc, char* argv[])
 {

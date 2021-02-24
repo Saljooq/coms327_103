@@ -4,6 +4,7 @@
 #include <endian.h>
 #include <string.h>
 #include <stdint.h>
+#include <limits.h>
 
 #define MAX_ROOMS 12
 #define MIN_ROOMS 6
@@ -27,14 +28,43 @@ typedef struct room
 	int ylen;
 }room;
 
+typedef struct node {
+	int xcoor;
+	int ycoor;
+	struct node* prev;
+	struct node* next;
+} node;
+
+typedef struct node_heap {
+	node* head;
+	node* tail;
+	int size;
+} node_heap;
+
+typedef struct neighbourhood{
+int store[8][2];
+int size;
+}neighbourhood;
+
+
+int getNeighbour(int x, int y, neighbourhood* n);
+int push(node_heap* nh, int x, int y);
+int pop(node_heap* nh, int* x, int* y);
+int print_difficulty();
+
+
 int makes_sense(room rooms[], int numRooms);
 int not_so_rand_roomsize_resizer(int numRooms);
+int print_dungeon(int x, int y);
+int djik (int xcoordinate, int ycoordinate, int ifdigger);
+int print_difficulty();
 
 char grid[xlenMax][ylenMax];
 int hardness[xlenMax][ylenMax];
 
-int difficulty[xlenMax][ylenMax];
-int difficulty_nt[xlenMax][ylenMax];
+int difficulty[xlenMax][ylenMax];//this will be used to save data for non-tunnelers
+int difficulty_t[xlenMax][ylenMax];//this is to save data for tunnelers
+uint8_t shortPathRecord[xlenMax][ylenMax];
 
 int main(int argc, char* argv[])
 {
@@ -213,13 +243,10 @@ int main(int argc, char* argv[])
 		fclose(f);
 		//printf("load found - final - no error while loading\n");
 
-
-
 	}
 	//this is where we start processing the dungron if the load was not found
 	else
 	{
-
 
 		//we will start out by creating a seed with time-0 to access some randomeness
 		srand(time(0));
@@ -377,27 +404,18 @@ int main(int argc, char* argv[])
 	//this is where processing of the dungeon ends
 
 	//below is where we print out the actual grid
+	print_dungeon(xPCpos-1, yPCpos-1);
 
-	char temp = grid[xPCpos - 1][yPCpos - 1];//we save the char where we want to place the PC
-	grid[xPCpos - 1][yPCpos - 1] = '@';
-
-	for (i = 0; i < xlenMax; i++) {printf("-");}
-	printf("\n");
-
-	for (i = 0; i < ylenMax; i++)
-	{
-		printf("|");
-		for (j = 0; j < xlenMax; j++)
-		{
-			printf("%c", grid[j][i]);
-		}
-		printf("|\n");
+	//next we calculate shortest distance for non-tunnelers
+	for (i = 0; i < ylenMax; i++){
+		for(j = 0; j < xlenMax; j++) difficulty[j][i] = INT_MAX;
 	}
 
-	for (i = 0; i < xlenMax; i++) {printf("-");}
-	printf("\n\n\n");
+	djik (xPCpos-1, yPCpos-1, 0);
+	printf("\n");
+	print_difficulty();
 
-	grid[xPCpos - 1][yPCpos - 1] = temp; //restoring the grid by replacing the PC
+
 
 	//Now we check to see if there's a save switch to update the /.rlg327/dungeon
 	j = 0;
@@ -546,10 +564,7 @@ int main(int argc, char* argv[])
 	}
 	//processing for save ends here
 
-
 	free(rooms);
-
-
 	return 0;
 }
 /*The first is the makes_sense function that takes the array of rooms and number of Rooms as the argument.
@@ -617,4 +632,228 @@ int not_so_rand_roomsize_resizer(int numRooms)
 	int roomSizer = (numRooms/2) - 1;
 
 	return roomSizer;
+}
+/* The print_dungeon method below simply takes the x and y coordinates of the PC to make sure the @ is at the right position*/
+int print_dungeon(int x, int y)
+{
+	int i, j;
+	//for (i = 0; i < xlenMax; i++) {printf("-");}
+	//printf("\n");
+
+	for (i = 0; i < ylenMax; i++)
+	{
+		//printf("|");
+		for (j = 0; j < xlenMax; j++)
+		{
+			if ( (i == y) && (j == x) ) printf("@");
+			else printf("%c", grid[j][i]);
+		}
+		printf("\n");
+	}
+
+	//for (i = 0; i < xlenMax; i++) {printf("-");}
+	//printf("\n\n\n");
+}
+/*This will be used to calculate the shortest distance for the monsters*/
+int djik (int xcoordinate, int ycoordinate, int ifdigger)
+{
+	int i, j, k, x, y;
+
+	//first we initialise the set of shortPathRecord to zero so nothing is taken to be processed by djik algo
+	for (i = 0; i < ylenMax; i++){
+		for (j = 0; j < xlenMax; j++)
+		{
+			shortPathRecord[j][i] = 0;
+		}
+	}
+
+	node_heap newH;
+	newH.size = 0;
+	newH.tail = NULL;
+	newH.head = NULL;
+
+	push (&newH, xcoordinate, ycoordinate);
+	difficulty[xcoordinate][ycoordinate] = 0;
+
+	while(newH.size > 0)
+	{
+		pop(&newH, &i, &j);
+		neighbourhood currN;
+		getNeighbour(i, j, &currN);
+		int init_diff = difficulty[i][j];
+		int diff_curr_block;
+		if (grid[i][j]== ' ') diff_curr_block = 1 + (hardness[i][j]/85);
+		else diff_curr_block = 1;
+
+		for (k = 0; k < currN.size; k++)
+		{
+			x = currN.store[k][0];
+			y = currN.store[k][1];
+
+			if (!(ifdigger))
+			{
+				if (grid[x][y] != ' ')
+				{
+					//check to see if it is already on the processed stack
+					if (!shortPathRecord[x][y])
+					{
+						if (difficulty[x][y] > (init_diff + diff_curr_block))
+						{
+							difficulty[x][y] = init_diff + diff_curr_block;
+							push(&newH, x, y);
+						}
+					}
+				}
+			}
+			else
+			{
+				//this is where we process the diggers
+				//check to see if it is already on the processed stack
+				if (shortPathRecord[x][y])
+				{
+					if (difficulty[x][y] > (init_diff + diff_curr_block))
+					{
+						difficulty[x][y] = init_diff + diff_curr_block;
+						push(&newH, x, y);
+					}
+				}
+
+			}
+
+		}
+		//add the processed i,j on the processed stack
+		shortPathRecord[i][j] = 1;
+
+	}
+	return 0;
+}
+int getNeighbour(int x, int y, neighbourhood* n){
+	int i,j;
+	int size = 0;
+	int store[8][2]; //= n->store;
+	//we start from the left and the move in the clockwise fashion
+	if (x > 0) {
+		store[size][0] = x - 1;
+		store[size][1] = y;
+		size++;
+	}
+	if ( (x > 0) && (y > 0) ){
+		store[size][0] = x - 1;
+		store[size][1] = y - 1;
+		size++;
+	}
+	if (y > 0) {
+		store[size][0] = x;
+		store[size][1] = y - 1;
+		size++;
+	}
+	if ( (x < (xlenMax - 1)) && (y > 0) ){
+		store[size][0] = x + 1;
+		store[size][1] = y - 1;
+		size++;
+	}
+	if (x < (xlenMax - 1)) {
+		store[size][0] = x + 1;
+		store[size][1] = y;
+		size++;
+	}
+	if ( (x < (xlenMax - 1)) && (y < (ylenMax - 1)) ){
+		store[size][0] = x + 1;
+		store[size][1] = y + 1;
+		size++;
+	}
+	if (y < (ylenMax - 1)) {
+		store[size][0] = x;
+		store[size][1] = y + 1;
+		size++;
+	}
+	if ( (x > 0) && (y < (ylenMax - 1)) ){
+		store[size][0] = x - 1;
+		store[size][1] = y + 1;
+		size++;
+	}
+
+//finally getting the copy in neighbourhood
+	for (i = 0; i < 2; i++)
+	{
+		for (j = 0; j < size; j++){
+			n->store[j][i] = store[j][i];
+		}
+	}
+	n->size = size;
+
+	return 0;
+}
+int push(node_heap* nh, int x, int y)
+{
+	node *newNode = malloc(sizeof(node));
+	newNode->xcoor = x;
+	newNode->ycoor = y;
+	newNode->next = NULL;
+
+	if (!(nh->size)){
+		newNode->prev = NULL;
+		nh->tail = newNode;
+		nh->head = newNode;
+		nh->size++;
+	}
+	else{
+		nh->head->next = newNode;
+		newNode->prev = (nh->head);
+		nh->head = newNode;
+		nh->size++;
+	}
+
+	return 0;
+
+}
+int pop(node_heap* nh, int* x, int* y)
+{
+	if (nh->size == 1)
+	{
+		*x = nh->tail->xcoor;
+		*y = nh->tail->ycoor;
+		free(nh->tail);
+	}
+	else
+	{
+		node* temp;
+		*x = nh->tail->xcoor;
+		*y = nh->tail->ycoor;
+		temp = nh->tail;
+		nh->tail = nh->tail->next;
+		nh->tail->prev = NULL;
+		free(temp);
+
+	}
+	nh->size -= 1;
+	return 0;
+
+}
+int print_difficulty()
+{
+	int i, j;
+	for (i = 0; i < ylenMax; i++)
+	{
+		for (j = 0; j < xlenMax; j++)
+		{
+			if (difficulty[j][i] == INT_MAX) printf(" ");
+			else printf("%c", (char) ('0' + (difficulty[j][i]%10)));
+		}
+		printf("\n");
+	}
+	printf("\n\n");
+	for (i = 0; i < ylenMax; i++)
+	{
+		for (j = 0; j < xlenMax; j++)
+		{
+			//if (difficulty[j][i] == INT_MAX) printf(" ");
+			//else printf("%c", (char) ('0' + (difficulty[j][i]%10)));
+			printf("%02x", hardness[j][i]);
+		}
+		printf("\n");
+	}
+
+
+	return 0;
 }
