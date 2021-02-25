@@ -50,14 +50,14 @@ int size;
 int getNeighbour(int x, int y, neighbourhood* n);
 int push(node_heap* nh, int x, int y);
 int pop(node_heap* nh, int* x, int* y);
-int print_difficulty();
+int print_difficulty(int PCposx, int PCposy, int diff_print[xlenMax][ylenMax]);
 
 
 int makes_sense(room rooms[], int numRooms);
 int not_so_rand_roomsize_resizer(int numRooms);
 int print_dungeon(int x, int y);
 int djik (int xcoordinate, int ycoordinate, int ifdigger);
-int print_difficulty();
+//int print_difficulty();
 int print_hardness();
 
 char grid[xlenMax][ylenMax];
@@ -66,6 +66,8 @@ int hardness[xlenMax][ylenMax];
 int difficulty[xlenMax][ylenMax];//this will be used to save data for non-tunnelers
 int difficulty_t[xlenMax][ylenMax];//this is to save data for tunnelers
 uint8_t shortPathRecord[xlenMax][ylenMax];
+
+int print_neighbour_movement(int PCposx, int PCposy, int hardness[xlenMax][ylenMax]);
 
 int main(int argc, char* argv[])
 {
@@ -381,6 +383,7 @@ int main(int argc, char* argv[])
 			}
 		}
 
+
 		//this is where we try to position PC on the floor, making sure there's floor there
 		xPCpos = 0;
 		yPCpos = 0;
@@ -411,12 +414,23 @@ int main(int argc, char* argv[])
 	for (i = 0; i < ylenMax; i++){
 		for(j = 0; j < xlenMax; j++) difficulty[j][i] = INT_MAX;
 	}
+	for (i = 0; i < ylenMax; i++){
+		for(j = 0; j < xlenMax; j++) difficulty_t[j][i] = INT_MAX;
+	}
 
-	djik (xPCpos-1, yPCpos-1, 0);
 	printf("\n");
-	print_difficulty();
+	djik (xPCpos-1, yPCpos-1, 0);
+	print_difficulty(xPCpos-1, yPCpos-1, difficulty);
+
+	printf("\n");
+	djik (xPCpos-1, yPCpos-1, 1);
+	print_difficulty(xPCpos-1, yPCpos-1, difficulty_t);
+
+	printf("\n");
 	print_hardness();
 
+	printf("\n");
+	print_neighbour_movement(xPCpos-1, yPCpos-1, hardness);
 
 
 	//Now we check to see if there's a save switch to update the /.rlg327/dungeon
@@ -675,14 +689,21 @@ int djik (int xcoordinate, int ycoordinate, int ifdigger)
 	newH.head = NULL;
 
 	push (&newH, xcoordinate, ycoordinate);
+	shortPathRecord [xcoordinate][ycoordinate] = 1;
 	difficulty[xcoordinate][ycoordinate] = 0;
+	difficulty_t[xcoordinate][ycoordinate] = 0;
 
 	while(newH.size > 0)
 	{
 		pop(&newH, &i, &j);
+		shortPathRecord [i][j] = 0;
 		neighbourhood currN;
 		getNeighbour(i, j, &currN);
-		int init_diff = difficulty[i][j];
+
+		int init_diff;
+		if (ifdigger)	init_diff	= difficulty_t[i][j];
+		else init_diff = difficulty[i][j];
+
 		int diff_curr_block;
 		if (grid[i][j]== ' ') diff_curr_block = 1 + (hardness[i][j]/85);
 		else diff_curr_block = 1;
@@ -697,34 +718,42 @@ int djik (int xcoordinate, int ycoordinate, int ifdigger)
 				if (grid[x][y] != ' ')
 				{
 					//check to see if it is already on the processed stack
-					if (!shortPathRecord[x][y])
-					{
+					//if (!shortPathRecord[x][y])
+					//{
 						if (difficulty[x][y] > (init_diff + diff_curr_block))
 						{
 							difficulty[x][y] = init_diff + diff_curr_block;
-							push(&newH, x, y);
+							if (!shortPathRecord[x][y])
+							{
+								push(&newH, x, y);
+								shortPathRecord[x][y] = 1;
+							}
 						}
-					}
+					//}
 				}
 			}
 			else
 			{
 				//this is where we process the diggers
 				//check to see if it is already on the processed stack
-				if (shortPathRecord[x][y])
-				{
-					if (difficulty[x][y] > (init_diff + diff_curr_block))
+				//if (!shortPathRecord[x][y])
+				//{
+					if (difficulty_t[x][y] > (init_diff + diff_curr_block))
 					{
-						difficulty[x][y] = init_diff + diff_curr_block;
-						push(&newH, x, y);
+						difficulty_t[x][y] = init_diff + diff_curr_block;
+						if (!shortPathRecord[x][y])
+						{
+							push(&newH, x, y);
+							shortPathRecord[x][y] = 1;
+						}
 					}
-				}
+				//}
 
 			}
 
 		}
 		//add the processed i,j on the processed stack
-		shortPathRecord[i][j] = 1;
+		//shortPathRecord[i][j] = 1;
 
 	}
 	return 0;
@@ -832,15 +861,20 @@ int pop(node_heap* nh, int* x, int* y)
 	return 0;
 
 }
-int print_difficulty()
+int print_difficulty(int PCposx, int PCposy, int diff_print[xlenMax][ylenMax])
 {
 	int i, j;
+
 	for (i = 0; i < ylenMax; i++)
 	{
 		for (j = 0; j < xlenMax; j++)
 		{
-			if (difficulty[j][i] == INT_MAX) printf(" ");
-			else printf("%c", (char) ('0' + (difficulty[j][i]%10)));
+			if ( (j==PCposx) && (i==PCposy) ) printf("@");
+			else
+			{
+				if (diff_print[j][i] == INT_MAX) printf(" ");
+				else printf("%c", (char) ('0' + (diff_print[j][i]%10)));
+			}
 		}
 		printf("\n");
 	}
@@ -879,6 +913,39 @@ int print_hardness()
 	for (j = 0; j < xlenMax + 2; j++)
 	{
 			printf("ff");
+	}
+	printf("\n");
+
+	return 0;
+}
+int print_neighbour_movement(int PCposx, int PCposy, int hardness[xlenMax][ylenMax])
+{
+	int i,j;
+
+	for (j = 0; j < xlenMax + 2; j++)
+	{
+			printf("X");
+	}
+	printf("\n");
+
+	for (i = 0; i < ylenMax; i++)
+	{
+		printf("X");
+		for (j = 0; j < xlenMax; j++)
+		{
+			if ( (j==PCposx) && (i==PCposy) ) printf("@");
+			else
+			{
+				if (grid[j][i] != ' ') printf("1");
+				else printf("%d", ((hardness[j][i]/85)+1));
+			}
+		}
+		printf("X\n");
+	}
+
+	for (j = 0; j < xlenMax + 2; j++)
+	{
+			printf("X");
 	}
 	printf("\n");
 
